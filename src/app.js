@@ -1,10 +1,11 @@
+'use strict';
 const express = require('express');
 const morgan = require('morgan');
 const cors = require('cors');
 const helmet = require('helmet');
 const { NODE_ENV, DATABASE_URL } = require('./config');
 require('dotenv').config();
-const jsonParser = express.json();
+// const jsonParser = express.json();
 const app = express();
 
 const multer = require('multer');
@@ -17,9 +18,9 @@ const morganOption = (NODE_ENV === 'production') ? 'tiny' : 'common';
 const db = knex({
   client: 'pg',
   connection: DATABASE_URL,
-})
+});
 
-const insertRows = function(rows) {
+const insertRows = function(rows, res) {
   // console.log(rows)
   const rowsToInsert = rows.map(row => ({
     full_name: row[0],
@@ -29,31 +30,31 @@ const insertRows = function(rows) {
  
   return db('raffle_entries').insert(rowsToInsert)
     .then(rows => {
-      return rows
+      return rows;
     })
-    .catch((err) => res.status(400).json(err))
-}
+    .catch((err) => res.status(400).json(err));
+};
 
 app.use(morgan(morganOption));
 app.use(helmet());
 app.use(cors());
 
 const getEntries = function() {
-  return db('raffle_entries').select('*')
-}
+  return db('raffle_entries').select('*');
+};
 const deleteAllEntries = function() {
-  return db.raw('TRUNCATE raffle_entries RESTART IDENTITY CASCADE')
-}
+  return db.raw('TRUNCATE raffle_entries RESTART IDENTITY CASCADE');
+};
 
 app.get('/sbc/entries', (req, res, next) => {
   getEntries()
     .then(entries => {
-      console.log(entries)
-      res.json(entries)
+      console.log(entries);
+      res.json(entries);
     })
-    .catch(next)
+    .catch(next);
   
-})
+});
 
 app.delete('/sbc/entries', (req, res, next) => {
   deleteAllEntries()
@@ -61,7 +62,7 @@ app.delete('/sbc/entries', (req, res, next) => {
       res.status(204).end()
     )
     .catch(next);
-})
+});
 app.post('/sbc/entries', upload.single('csvFile'), (req, res) => {
      
   let columns = [];
@@ -76,21 +77,21 @@ app.post('/sbc/entries', upload.single('csvFile'), (req, res) => {
     }
     columns.shift();
     columns.pop();
-    insertRows(columns)
+    insertRows(columns, res)
       .then(rows => {
         res.status(201).json(rows);
-      })
+      });
 
 
   
   } catch(err) {
     console.log(err);
-    res.status(400).json('Error')
+    res.status(400).json('Error');
   }
   
 });
 
-app.use(function errorHandler(error, req, res, next) {
+app.use(function errorHandler(error, res) {
   let response;
   if(NODE_ENV === 'production') {
     response = { error: { message: 'Internal Server Error' } };
@@ -99,6 +100,6 @@ app.use(function errorHandler(error, req, res, next) {
     response = { message: error.message, error };
   }
   res.status(500).json(response);
-})
+});
 
 module.exports = app;
